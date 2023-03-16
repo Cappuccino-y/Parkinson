@@ -84,15 +84,23 @@ test_data['visit_month']=test_data.index.map(lambda x: x.split('_')[1])
 new_data=pd.DataFrame(new_data,columns=['pca_'+ str(i) for i in range(new_data.shape[1])],index=df.index)
 test_data['visit_month']=test_data.index.map(lambda x: int(x.split('_')[1]))
 test_data=test_data[test_data.columns[:-1].insert(0,test_data.columns[-1])]
-test_data=test_data.set_index(test_data.index.map(lambda x:x.split('_')[0]))
+# test_data=test_data.set_index(test_data.index.map(lambda x:x.split('_')[0]))
 train_data=pd.concat([df.iloc[:,:5],new_data],axis=1)
 
-
+train_data_time=[]
+group=train_data.groupby(train_data.index.str.split('_').map(lambda x:x[0]))
+for index,data in group:
+    for i in range(data.shape[0]):
+        var=data.iloc[i:i+1,5:]
+        for j in range(i,data.shape[0]):
+            row_data=pd.concat([data.iloc[j:j+1,:5].copy().set_index(var.index),var],axis=1,)
+            row_data.iloc[0,0]=data.iloc[j,0]- data.iloc[i,0]
+            train_data_time.append(row_data)
+train_data=pd.concat(train_data_time).set_index(np.arange(len(train_data_time)))
 xg_reg = MultiOutputRegressor( XGBRegressor(objective ='reg:squarederror', colsample_bytree = 0.3, learning_rate = 0.1,
                 max_depth = 5, alpha = 10, n_estimators = 10))
 xg_reg.fit(np.concatenate([train_data.iloc[:,0:1],new_data],axis=1),train_data.iloc[:,1:5])
 
-a=3
 def estimates(targets):
     input=test_data.loc[[targets[2]]]
     input.iloc[:,0]+=targets[0]
